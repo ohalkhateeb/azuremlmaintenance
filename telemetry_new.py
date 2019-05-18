@@ -52,7 +52,11 @@ telemetry.rename(
         "AVCClassID": "Class0",
         "TagNumber": "TagRead",
         "TrxnType_Transactions": "Transactions",
-        "TrxnType_Violations": "Violations"
+        "TrxnType_Violations": "Violations",
+        "VehicleSpeed": "Speed",
+        "VehicleHeight": "Height",
+        "VehicleLength": "Length",
+        "VehicleWidth": "Width"
     },
     inplace=True
 )
@@ -62,7 +66,7 @@ telemetry.rename(
 telemetry['datetime'] = pd.to_datetime(telemetry['datetime'])
 telemetry['Class0'] = telemetry['Class0'].astype('int')
 telemetry['TagRead'] = telemetry['TagRead'].apply(lambda x: int(x, 16)) # convert from HEX to int
-cols = ['VehicleLength', 'VehicleHeight','VehicleWidth', 'VehicleSpeed']
+cols = ['Length', 'Height','Width', 'Speed']
 telemetry[cols] = telemetry[cols].astype(str).astype(int)  # convert object to int
 
 
@@ -74,7 +78,7 @@ telemetry['TagRead'] = (telemetry['TagRead'] != 0).astype(int)  # if it's TagRea
 
 # Calculate mean values for telemetry features
 temp = []
-fields = ['VehicleSpeed', 'VehicleHeight', 'VehicleLength', 'VehicleWidth']
+fields = ['Speed', 'Height', 'Length', 'Width']
 for col in fields:
     temp.append(pd.pivot_table(telemetry,index='datetime',columns='LaneID', values=col).resample('3H', closed='left', label='right').mean().unstack())
 telemetry_mean_3h = pd.concat(temp, axis=1)
@@ -92,24 +96,24 @@ telemetry_sd_3h.reset_index(inplace=True)
 
 # For capturing a longer term effect, 24 hour lag features are also calculated as below  
 temp = []
-fields = ['VehicleSpeed', 'VehicleHeight', 'VehicleLength', 'VehicleWidth']
+fields = ['Speed', 'Height', 'Length', 'Width']
 for col in fields:
     temp.append(pd.pivot_table(telemetry,index='datetime',columns='LaneID',values=col).rolling(24).mean().resample('3H',closed='left', label='right').first().unstack())
     
 telemetry_mean_24h = pd.concat(temp, axis=1)
 telemetry_mean_24h.columns = [i + 'mean_24h' for i in fields]
 telemetry_mean_24h.reset_index(inplace=True)
-telemetry_mean_24h = telemetry_mean_24h.loc[-telemetry_mean_24h['VehicleSpeedmean_24h'].isnull()]
+telemetry_mean_24h = telemetry_mean_24h.loc[-telemetry_mean_24h['Speedmean_24h'].isnull()]
 
 # repeat for standard deviation
 temp = []
-fields = ['VehicleSpeed', 'VehicleHeight', 'VehicleLength', 'VehicleWidth']
+fields = ['Speed', 'Height', 'Length', 'Width']
 for col in fields:
     temp.append(pd.pivot_table(telemetry,index='datetime',columns='LaneID', values=col).rolling(24).std().resample('3H', closed='left', label='right').first().unstack())
     
 telemetry_sd_24h = pd.concat(temp, axis=1)
 telemetry_sd_24h.columns = [i + 'sd_24h' for i in fields]
-telemetry_sd_24h = telemetry_sd_24h.loc[-telemetry_sd_24h['VehicleSpeedsd_24h'].isnull()]
+telemetry_sd_24h = telemetry_sd_24h.loc[-telemetry_sd_24h['Speedsd_24h'].isnull()]
 telemetry_sd_24h.reset_index(inplace=True)
 
 # Notice that a 24h rolling average is not available at the earliest timepoints
