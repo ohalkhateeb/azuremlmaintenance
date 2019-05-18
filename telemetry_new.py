@@ -4,20 +4,45 @@
 import pandas as pd 
 import numpy as np 
 
-telemetry = pd.read_csv('MAR2019_1801_DetailTransactions.csv', error_bad_lines=False)
-telemetry = telemetry.iloc[3:]
-
-# format datetime field which comes in as string
-#failures['datetime'] = pd.to_datetime(failures['datetime'], format="%m/%d/%Y %H:%M")
-#failures['failure'] = failures['failure'].astype('category')
 
 
-telemetry['datetime'] = pd.to_datetime(telemetry['datetime'])
+telemetry = pd.read_csv('march2019.csv', error_bad_lines=False)
+
+telemetry = telemetry.rename(columns=telemetry.iloc[2]) # use row 2 for header name
+telemetry = telemetry.drop(telemetry.index[0:3])  # drop first 3 rows
+telemetry = telemetry.reset_index(drop = True)    # reset index 
+
+'''
+telemetry_chunk = pd.read_csv('MAR2019_1801_DetailTransactions.csv',chunksize=200000,error_bad_lines=False)
+telemetry = pd.read_csv('MAR2019_1801_DetailTransactions.csv',nrows=1000,error_bad_lines=False)
+
+chunk_list = []  # append each chunk df here 
+# Each chunk is in df format
+for chunk in telemetry_chunk:  
+    # perform data filtering 
+    chunk_filter = chunk.iloc[3:]
+    
+    # Once the data filtering is done, append the chunk to list
+    chunk_list.append(chunk_filter)
+    
+# concat the list into dataframe 
+df_concat = pd.concat(chunk_list)
+'''
+
+#telemetry = telemetry.iloc[2:]
+
 
 # Delete multiple columns from the dataframe
-telemetry = telemetry.drop(["TollingPointID", "TollingZoneID", "DirectionCode",""], "SequenceNumber",
-                           "Tick","DVISCameraNum1","DVISCameraNum2","ImageCount","UTCDateTime"
-                           "TollingPointID1",axis=1)
+telemetry = telemetry.drop(["TollingPointID", "TollingZoneID", "DirectionCode", "SequenceNumber",
+                           "Tick","DVISCameraNum1","DVISCameraNum2","ImageCount","UTCDateTime",
+                           "TollingPointID1"], axis=1)
+
+    
+# use pd.concat to join the new columns with your original dataframe
+telemetry = pd.concat([telemetry,pd.get_dummies(telemetry['TrxnType'], prefix='TrxnType')],axis=1)
+
+# now drop the original 'country' column (you don't need it anymore)
+telemetry.drop(['TrxnType'],axis=1, inplace=True)
 
 
 # Rename multiple columns in one go with a larger dictionary
@@ -25,14 +50,27 @@ telemetry.rename(
     columns={
         "TrxnDateTime": "datetime",
         "AVCClassID": "Class0",
-        "TagNumber": "TagRead"
+        "TagNumber": "TagRead",
+        "TrxnType_Transactions": "Transactions",
+        "TrxnType_Violations": "Violations"
     },
     inplace=True
 )
 
-	 Transactions	 Violations		
+# format data in fields 
 
-    
+telemetry['datetime'] = pd.to_datetime(telemetry['datetime'])
+telemetry['Class0'] = telemetry['Class0'].astype('int')
+telemetry['TagRead'] = telemetry['TagRead'].apply(lambda x: int(x, 16)) # convert from HEX to int
+cols = ['VehicleLength', 'VehicleHeight','VehicleWidth', 'VehicleSpeed']
+telemetry[cols] = telemetry[cols].astype(str).astype(int)  # convert object to int
+
+
+telemetry['Class0'] = (telemetry['Class0'] == 0).astype(int) # if it's class0 then = 1
+telemetry['TagRead'] = (telemetry['TagRead'] != 0).astype(int)  # if it's TagRead = 1
+
+#  ------------------------------------------------------------------------------------------------
+
 
 # Calculate mean values for telemetry features
 temp = []
